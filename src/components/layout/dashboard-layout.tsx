@@ -26,7 +26,8 @@ import {
   LogOut,
   Settings,
   Bell,
-  Home
+  Home,
+  User
 } from 'lucide-react'
 
 const navigation = [
@@ -35,6 +36,7 @@ const navigation = [
   { name: 'Parking Spots', href: '/dashboard/parking', icon: MapPin },
   { name: 'Users', href: '/dashboard/users', icon: Users },
   { name: 'Bookings', href: '/dashboard/bookings', icon: Calendar },
+  {name: 'Vendors', href: '/dashboard/vendors', icon: User},
   { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
 ]
 
