@@ -59,7 +59,8 @@ export default function VendorsPage() {
   const filteredVendors = vendors.filter((vendor) =>
     vendor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     vendor.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    vendor.number.toString().includes(searchTerm)
+    vendor.number.toString().includes(searchTerm) ||
+    (vendor.id && vendor.id.toString().includes(searchTerm))
   );
 
   // Handlers
@@ -108,7 +109,7 @@ export default function VendorsPage() {
           <div className="flex gap-4 mb-6">
             <div className="relative flex-1">
               <Input
-                placeholder="Search by name, email, or phone..."
+                placeholder="Search by name, email, or phone or id..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -120,6 +121,7 @@ export default function VendorsPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>ID</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Phone</TableHead>
@@ -137,6 +139,7 @@ export default function VendorsPage() {
               ) : (
                 filteredVendors.map((vendor : VendorFormData) => (
                   <TableRow key={vendor.id}>
+                    <TableCell>{vendor.id?.toString()}</TableCell>
                     <TableCell>{vendor.name}</TableCell>
                     <TableCell>{vendor.email}</TableCell>
                     <TableCell>{vendor.number}</TableCell>
@@ -163,6 +166,9 @@ export default function VendorsPage() {
                               </DialogDescription>
                             </DialogHeader>
                             <div className="space-y-3">
+                            <div>
+                                <span className="font-semibold">ID:</span> {vendor.id}
+                              </div>
                               <div>
                                 <span className="font-semibold">Name:</span> {vendor.name}
                               </div>

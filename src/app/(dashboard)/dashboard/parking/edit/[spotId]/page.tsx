@@ -1,17 +1,15 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useParams } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { addParkingSpot, ParkingSpot } from '../api'
+import { getParkingSpotById, updateParkingSpot, ParkingSpot } from '../../api'
 import { toast } from 'sonner'
 import { ArrowLeft, MapPin, Car, Navigation } from 'lucide-react'
 import { uploadImageToCloudinary, validateImageFile } from '@/lib/cloudinary'
-
-
 
 interface ParkingSpotForm {
   name: string
@@ -27,11 +25,16 @@ interface ParkingSpotForm {
   lng: number
 }
 
-// Remove amenities array as it's not needed
-
-export default function AddParkingSpotPage() {
+export default function EditParkingSpotPage() {
   const router = useRouter()
+  const params = useParams()
+  const spotId = params.spotId as string
+
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [mainImageLoading, setMainImageLoading] = useState(false)
+  const [additionalImagesLoading, setAdditionalImagesLoading] = useState(false)
+  
   const [formData, setFormData] = useState<ParkingSpotForm>({
     name: '',
     locality: '',
@@ -46,34 +49,42 @@ export default function AddParkingSpotPage() {
     lng: 0
   })
 
-  const [mainImageLoading, setMainImageLoading] = useState(false)
-  const [additionalImagesLoading, setAdditionalImagesLoading] = useState(false)
+  // Fetch existing parking spot data
+  useEffect(() => {
+    const fetchParkingSpot = async () => {
+      setLoading(true)
+      try {
+        const response = await getParkingSpotById(parseInt(spotId))
+        if (response && response.parking) {
+          const parking = response.parking
+          setFormData({
+            name: parking.name,
+            locality: parking.locality,
+            city: parking.city || '',
+            state: parking.state || '',
+            country: parking.country || '',
+            pincode: parking.pincode?.toString() || '',
+            capacity: parking.capacity,
+            mainimg: parking.mainimg,
+            images: parking.images || [],
+            lat: parking.lat,
+            lng: parking.lng
+          })
+        }
+      } catch (error) {
+        console.error('Error fetching parking spot:', error)
+        toast.error('Failed to load parking spot details')
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchParkingSpot()
+  }, [spotId])
 
   const handleInputChange = (field: keyof ParkingSpotForm, value: string | number) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
-    }))
-  }
-
-  const handleImageChange = (field: 'mainimg' | 'images', value: string) => {
-    if (field === 'mainimg') {
-      setFormData(prev => ({
-        ...prev,
-        mainimg: value
-      }))
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        images: [...prev.images, value]
-      }))
-    }
-  }
-
-  const removeImage = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      images: prev.images.filter((_, i) => i !== index)
     }))
   }
 
@@ -114,6 +125,13 @@ export default function AddParkingSpotPage() {
       }
     }
     setAdditionalImagesLoading(false)
+  }
+
+  const removeImage = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index)
+    }))
   }
 
   // Map component for location selection
@@ -272,28 +290,35 @@ export default function AddParkingSpotPage() {
     setIsSubmitting(true)
 
     try {
+      const parkingSpotData = {
+        ...formData,
+        pincode: Number(formData.pincode),
+      };
+      
+      console.log('Updating parking spot data:', parkingSpotData);
+      const res = await updateParkingSpot(parseInt(spotId), parkingSpotData);
 
-        const parkingSpotData = {
-          ...formData,
-          pincode: Number(formData.pincode),
-        };
-        
-        console.log('Submitting parking spot data:', parkingSpotData);
-        const res = await addParkingSpot(parkingSpotData);
-
-     if(res){
-      toast.success('Parking spot added successfully!')
-      router.push('/dashboard/parking')
-  
-     }else{
-      toast.error('Failed to add parking spot. Please try again.')
-
+      if(res){
+        toast.success('Parking spot updated successfully!')
+        router.push(`/dashboard/parking/${spotId}`)
+      } else {
+        toast.error('Failed to update parking spot. Please try again.')
       }
     } catch {
-      toast.error('Failed to add parking spot. Please try again.')
+      toast.error('Failed to update parking spot. Please try again.')
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <span className="text-lg font-medium">Loading parking spot details...</span>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -302,15 +327,15 @@ export default function AddParkingSpotPage() {
       <div className="flex items-center gap-4">
         <Button 
           variant="ghost" 
-          onClick={() => router.push('/dashboard/parking')}
+          onClick={() => router.push(`/dashboard/parking/${spotId}`)}
           className="p-2"
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Add New Parking Spot</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Edit Parking Spot</h1>
           <p className="text-gray-600 mt-2">
-            Create a new parking location for your fleet management
+            Update parking spot details and location
           </p>
         </div>
       </div>
@@ -324,7 +349,7 @@ export default function AddParkingSpotPage() {
               Basic Information
             </CardTitle>
             <CardDescription>
-              Enter the basic details for the new parking spot
+              Update the basic details for the parking spot
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -417,7 +442,7 @@ export default function AddParkingSpotPage() {
               Location Selection
             </CardTitle>
             <CardDescription>
-              Select the exact location on the map by clicking to place a marker
+              Update the exact location on the map by clicking to place a marker
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -433,7 +458,7 @@ export default function AddParkingSpotPage() {
               Images
             </CardTitle>
             <CardDescription>
-              Add main image and additional images for the parking spot
+              Update main image and additional images for the parking spot
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -480,8 +505,8 @@ export default function AddParkingSpotPage() {
                         >
                           ×
                         </Button>
-                </div>
-              ))}
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
@@ -494,7 +519,7 @@ export default function AddParkingSpotPage() {
           <Button 
             type="button" 
             variant="outline" 
-            onClick={() => router.push('/dashboard/parking')}
+            onClick={() => router.push(`/dashboard/parking/${spotId}`)}
           >
             Cancel
           </Button>
@@ -503,10 +528,10 @@ export default function AddParkingSpotPage() {
             disabled={isSubmitting}
             className="min-w-32"
           >
-            {isSubmitting ? 'Adding...' : 'Add Parking Spot'}
+            {isSubmitting ? 'Updating...' : 'Update Parking Spot'}
           </Button>
         </div>
       </form>
     </div>
   )
-}
+} 

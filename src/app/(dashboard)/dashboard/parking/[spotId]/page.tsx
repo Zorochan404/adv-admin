@@ -27,10 +27,17 @@ import {
   Calendar,
   FileText,
   Shield,
-  Wrench
+  Wrench,
+  Edit,
+  UserPlus,
+  Trash2
 } from 'lucide-react'
-import { getParkingSpotById } from '../api'
+import { getParkingSpotById, searchParkingInchargeByPhone, assignInchargeToParking, deleteParkingIncharge } from '../api'
 import { useEffect, useState } from 'react'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { toast } from 'sonner'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 
 // Define interfaces based on the API response
 interface Car {
@@ -78,11 +85,26 @@ interface ParkingSpot {
   updatedAt: string
 }
 
+interface ParkingIncharge {
+  id: number
+  name: string | null
+  email: string | null
+  number: number
+  role: string
+  isverified: boolean
+  avatar: string | null
+  createdAt: string
+  updatedAt: string
+}
+
 interface ParkingSpotResponse {
   parking: ParkingSpot
+  parkingIncharge: ParkingIncharge[]
   cars: Car[]
   totalCars: number
   availableCars: number
+  approvedCars: number
+  inMaintenanceCars: number
 }
 
 // Car Card Component
@@ -366,6 +388,10 @@ export default function ParkingSpotPage() {
 
   const [parkingData, setParkingData] = useState<ParkingSpotResponse | null>(null)
   const [loading, setLoading] = useState(true)
+  const [searchPhone, setSearchPhone] = useState('')
+  const [searching, setSearching] = useState(false)
+  const [searchResult, setSearchResult] = useState<any>(null)
+  const [assigning, setAssigning] = useState(false)
 
   useEffect(() => {
     const fetchParkingSpot = async () => {
@@ -384,6 +410,61 @@ export default function ParkingSpotPage() {
     }
     fetchParkingSpot()
   }, [spotId])
+
+  const handleSearchIncharge = async () => {
+    if (!searchPhone.trim()) {
+      toast.error('Please enter a phone number')
+      return
+    }
+
+    setSearching(true)
+    setSearchResult(null)
+    const number = {
+      number: searchPhone
+    }
+    
+    try {
+      const result = await searchParkingInchargeByPhone(number)
+      if (result) {
+        console.log(result.data[0])
+        setSearchResult(result.data[0])
+        toast.success('Incharge found!')
+      } else {
+        toast.error('No incharge found with this phone number')
+      }
+    } catch (error) {
+      console.error('Error searching incharge:', error)
+      toast.error('Failed to search incharge')
+    } finally {
+      setSearching(false)
+    }
+  }
+
+  const handleAssignIncharge = async (inchargeId: number) => {
+    setAssigning(true)
+    
+    try {
+      const result = await assignInchargeToParking(parseInt(spotId), inchargeId)
+      if (result) {
+        toast.success('Incharge assigned successfully!')
+        router.refresh()
+        // Refresh the parking data
+        const response = await getParkingSpotById(parseInt(spotId))
+        if (response) {
+          setParkingData(response)
+        }
+        setSearchResult(null)
+        setSearchPhone('')
+      } else {
+        toast.error('Failed to assign incharge')
+      }
+    } catch (error) {
+      console.error('Error assigning incharge:', error)
+      toast.error('Failed to assign incharge')
+    } finally {
+      setAssigning(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -409,28 +490,56 @@ export default function ParkingSpotPage() {
     )
   }
 
-  const { parking: spot, cars: carsAtSpot, totalCars, availableCars: availableCarsCount } = parkingData
+  const { parking: spot, cars: carsAtSpot, totalCars, availableCars: availableCarsCount, approvedCars, inMaintenanceCars, parkingIncharge = [] } = parkingData
   const bookedCars = carsAtSpot.filter(car => !car.isavailable && !car.inmaintainance)
   const maintenanceCars = carsAtSpot.filter(car => car.inmaintainance)
-
+  const handleDeleteIncharge = async (inchargeId: number) => {
+    try {
+      const result = await deleteParkingIncharge(inchargeId)
+      if (result) {
+        toast.success('Incharge deleted successfully!')
+        router.refresh()
+        // Refresh the parking data
+        const response = await getParkingSpotById(parseInt(spotId))
+        if (response) {
+          setParkingData(response)
+        }
+      }
+    } catch (error) {
+      console.error('Error deleting incharge:', error)
+      toast.error('Failed to delete incharge')
+    }
+  }
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button 
-          variant="ghost" 
-          onClick={() => router.push('/dashboard/parking')}
-          className="p-2"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">{spot?.name}</h1>
-          <p className="text-gray-600 mt-2 flex items-center gap-2">
-            <MapPin className="h-4 w-4" />
-            {spot?.locality}
-          </p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button 
+            variant="ghost" 
+            onClick={() => router.push('/dashboard/parking')}
+            className="p-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">{spot?.name}</h1>
+            <p className="text-gray-600 mt-2 flex items-center gap-2">
+              <MapPin className="h-4 w-4" />
+              {spot?.locality}
+            </p>
+          </div>
         </div>
+   
+        <Button 
+          onClick={() => router.push(`/dashboard/parking/edit/${spotId}`)}
+          className="flex items-center gap-2"
+        >
+          <Edit className="h-4 w-4" />
+          Edit Parking Spot
+        </Button>
+        
+      
       </div>
 
       {/* Parking Spot Details */}
@@ -477,14 +586,14 @@ export default function ParkingSpotPage() {
       </Card>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center">
               <Car className="h-8 w-8 text-orange-600" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Total Cars</p>
-                <p className="text-2xl font-bold">{carsAtSpot.length}</p>
+                <p className="text-2xl font-bold">{totalCars}</p>
               </div>
             </div>
           </CardContent>
@@ -505,6 +614,19 @@ export default function ParkingSpotPage() {
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center">
+              <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
+                <div className="h-4 w-4 bg-blue-600 rounded-full"></div>
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Approved</p>
+                <p className="text-2xl font-bold">{approvedCars}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center">
               <div className="h-8 w-8 bg-orange-100 rounded-full flex items-center justify-center">
                 <div className="h-4 w-4 bg-orange-600 rounded-full"></div>
               </div>
@@ -518,12 +640,12 @@ export default function ParkingSpotPage() {
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center">
-              <div className="h-8 w-8 bg-orange-100 rounded-full flex items-center justify-center">
-                <div className="h-4 w-4 bg-orange-600 rounded-full"></div>
+              <div className="h-8 w-8 bg-red-100 rounded-full flex items-center justify-center">
+                <div className="h-4 w-4 bg-red-600 rounded-full"></div>
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Maintenance</p>
-                <p className="text-2xl font-bold">{maintenanceCars.length}</p>
+                <p className="text-2xl font-bold">{inMaintenanceCars}</p>
               </div>
             </div>
           </CardContent>
@@ -582,6 +704,187 @@ export default function ParkingSpotPage() {
         </CardContent>
       </Card>
 
+      {/* Parking Incharge Details */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Parking Incharge Details</CardTitle>
+              <CardDescription>
+                Manage parking managers and staff assigned to this location
+              </CardDescription>
+            </div>
+            <Button 
+              onClick={() => router.push(`/dashboard/parking/add-manager/${spotId}`)}
+              className="flex items-center gap-2"
+            >
+              <UserPlus className="h-4 w-4" />
+              Add Manager
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {/* Search Existing Incharge Section */}
+          <div className="mb-6 p-4 border rounded-lg bg-gray-50">
+            <h4 className="font-medium mb-3 flex items-center gap-2">
+              <UserPlus className="h-4 w-4" />
+              Search & Add Existing Incharge
+            </h4>
+            <div className="space-y-4">
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Label htmlFor="searchPhone">Phone Number</Label>
+                  <Input
+                    id="searchPhone"
+                    type="tel"
+                    placeholder="Enter phone number to search"
+                    value={searchPhone}
+                    onChange={(e) => setSearchPhone(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleSearchIncharge()}
+                  />
+                </div>
+                <div className="flex items-end">
+                  <Button 
+                    onClick={handleSearchIncharge}
+                    disabled={searching || !searchPhone.trim()}
+                    className="flex items-center gap-2"
+                  >
+                    {searching ? 'Searching...' : 'Search'}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Search Result */}
+              {searchResult && (
+                <div className="p-4 border rounded-lg bg-white">
+                  <h5 className="font-medium mb-3">Found Incharge:</h5>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={searchResult.avatar || ''} alt={searchResult.name || 'Incharge'} />
+                        <AvatarFallback>
+                          {searchResult.name ? searchResult.name.split(' ').map((n: string) => n[0]).join('').toUpperCase() : 'I'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium">{searchResult.name || 'Unnamed Incharge'}</p>
+                        <p className="text-sm text-gray-600">Phone: {searchResult.number}</p>
+                        <p className="text-sm text-gray-600">Email: {searchResult.email || 'No email'}</p>
+                        <p className="text-sm text-gray-600">Role: {searchResult.role}</p>
+                      </div>
+                    </div>
+                    <Button
+                      onClick={() => handleAssignIncharge(searchResult.id)}
+                      disabled={assigning}
+                      className="flex items-center gap-2"
+                    >
+                      {assigning ? 'Assigning...' : 'Assign to Parking'}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {parkingIncharge.length === 0 ? (
+            <div className="text-center py-8">
+              <User className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Parking Managers Assigned</h3>
+              <p className="text-gray-600 mb-4">
+                This parking spot doesn't have any managers assigned yet.
+              </p>
+              <Button 
+                onClick={() => router.push(`/dashboard/parking/add-manager/${spotId}`)}
+                className="flex items-center gap-2"
+              >
+                <UserPlus className="h-4 w-4" />
+                Add First Manager
+              </Button>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Manager</TableHead>
+                  <TableHead>Contact</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Assigned Date</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {parkingIncharge.map((incharge: ParkingIncharge) => (
+                  <TableRow key={incharge.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={incharge.avatar || ''} alt={incharge.name || 'Manager'} />
+                          <AvatarFallback>
+                            {incharge.name ? incharge.name.split(' ').map((n: string) => n[0]).join('').toUpperCase() : 'M'}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-medium">{incharge.name || 'Unnamed Manager'}</p>
+                          <p className="text-sm text-gray-600">ID: {incharge.id}</p>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 text-sm">
+                          <Mail className="h-3 w-3 text-gray-500" />
+                          {incharge.email || 'No email'}
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          <Phone className="h-3 w-3 text-gray-500" />
+                          {incharge.number}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{incharge.role}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge 
+                        className={incharge.isverified 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-red-100 text-red-800'
+                        }
+                      >
+                        {incharge.isverified ? 'Verified' : 'Unverified'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm text-gray-600">
+                        {formatDate(incharge.createdAt)}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => router.push(`/dashboard/parking/edit-manager/${spotId}/${incharge.id}`)}
+                        >
+                          <Edit className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteIncharge(incharge.id)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
 
     </div>
   )

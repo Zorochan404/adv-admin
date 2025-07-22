@@ -92,7 +92,9 @@ export default function ParkingPage() {
         <Button onClick={() => router.push('/dashboard/parking/add')}>
           <Plus className="h-4 w-4 mr-2" />
           Add Parking Spot
-        </Button>
+        </Button> 
+
+       
       </div>
 
       {/* Overview Cards */}
