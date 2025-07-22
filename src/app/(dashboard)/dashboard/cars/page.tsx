@@ -25,7 +25,6 @@ import {
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { mockParkingSpots } from '@/data/mock-data'
 import { Car, Plus, Search, MapPin, Eye, FileText, Shield, Wrench, User, Edit, Trash2, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { deleteCar, fetchCars } from './api'
@@ -264,27 +263,27 @@ export default function CarsPage() {
         <CardContent>
           <div className="flex flex-col gap-4 mb-6">
             <div className="flex gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <Input
-                  placeholder="Search by make, model, license plate, unique ID, or owner..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-48">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="available">Available</SelectItem>
-                  <SelectItem value="rented">Rented</SelectItem>
-                  <SelectItem value="maintenance">Maintenance</SelectItem>
-                  <SelectItem value="out_of_service">Out of Service</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                placeholder="Search by make, model, license plate, unique ID, or owner..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="available">Available</SelectItem>
+                <SelectItem value="rented">Rented</SelectItem>
+                <SelectItem value="maintenance">Maintenance</SelectItem>
+                <SelectItem value="out_of_service">Out of Service</SelectItem>
+              </SelectContent>
+            </Select>
             </div>
             {/* Date Range Selector */}
             <div className="flex gap-4 items-center">
@@ -360,9 +359,9 @@ export default function CarsPage() {
                     <TableCell className="font-mono">{car.carnumber}</TableCell>
                     <TableCell className="capitalize">{car.type}</TableCell>
                     <TableCell>
-                      <Badge className={statusColors[car.inmaintainance ? 'maintenance' : (car.isavailable ? 'available' : 'rented')]}> 
-                        {car.inmaintainance ? 'maintenance' : (car.isavailable ? 'available' : 'rented')}
-                      </Badge>
+                          <Badge className={statusColors[car.inmaintainance ? 'maintenance' : (car.isavailable ? 'available' : 'rented')]}>
+                            {car.inmaintainance ? 'maintenance' : (car.isavailable ? 'available' : 'rented')}
+                          </Badge>
                     </TableCell>
                     <TableCell>
                       <p className="font-medium">{formatCurrency(car.price)}/day</p>

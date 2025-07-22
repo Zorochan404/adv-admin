@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { mockCars, mockBookings, mockUsers, mockParkingSpots } from '@/data/mock-data'
+
 import {
   Car,
   Users,
@@ -53,31 +53,31 @@ export default function DashboardPage() {
         break
     }
 
-    const filteredBookings = mockBookings.filter(booking => {
-      const bookingDate = new Date(booking.createdAt)
-      return bookingDate >= startDate
-    })
+    // const filteredBookings = mockBookings.filter(booking => {
+    //   const bookingDate = new Date(booking.createdAt)
+    //   return bookingDate >= startDate
+    // })
 
-    const totalRevenue = filteredBookings.reduce((sum, booking) => sum + booking.totalAmount, 0)
-    const activeBookings = mockBookings.filter(b => b.status === 'active').length
-    const completedBookings = filteredBookings.filter(b => b.status === 'completed').length
+    // const totalRevenue = filteredBookings.reduce((sum, booking) => sum + booking.totalAmount, 0)
+    // const activeBookings = mockBookings.filter(b => b.status === 'active').length
+    // const completedBookings = filteredBookings.filter(b => b.status === 'completed').length
 
     return {
-      bookings: filteredBookings,
-      totalRevenue,
-      activeBookings,
-      completedBookings,
+      bookings: [],
+      totalRevenue: 0,
+      activeBookings: 0,
+      completedBookings: 0,
       period: filterPeriod
     }
   }, [filterPeriod])
 
   // Car availability analysis
   const carAvailability = useMemo(() => {
-    const total = mockCars.length
-    const available = mockCars.filter(car => car.status === 'available').length
-    const rented = mockCars.filter(car => car.status === 'rented').length
-    const maintenance = mockCars.filter(car => car.status === 'maintenance').length
-    const outOfService = mockCars.filter(car => car.status === 'out_of_service').length
+    const total = 0
+    const available = 0
+    const rented = 0
+    const maintenance = 0
+    const outOfService = 0
 
     return {
       total,
@@ -91,16 +91,16 @@ export default function DashboardPage() {
 
   // Parking spot utilization
   const parkingUtilization = useMemo(() => {
-    return mockParkingSpots.map(spot => {
-      const carsAtSpot = mockCars.filter(car => car.parkingSpotId === spot.id)
-      const utilization = ((carsAtSpot.length / spot.capacity) * 100).toFixed(1)
+    return [].map(spot => {
+      const carsAtSpot = []
+      const utilization = ((carsAtSpot.length / 0) * 100).toFixed(1)
 
       return {
-        name: spot.name,
+        name: '',
         cars: carsAtSpot.length,
-        capacity: spot.capacity,
+        capacity: 0,
         utilization: parseFloat(utilization),
-        available: spot.capacity - carsAtSpot.length
+        available: 0 - carsAtSpot.length
       }
     })
   }, [])
@@ -109,15 +109,15 @@ export default function DashboardPage() {
   const revenueByCarType = useMemo(() => {
     const typeRevenue: Record<string, number> = {}
 
-    filteredData.bookings.forEach(booking => {
-      const carType = booking.car.type
-      typeRevenue[carType] = (typeRevenue[carType] || 0) + booking.totalAmount
-    })
+    // filteredData.bookings.forEach(booking => {
+    //   const carType = booking.car.type
+    //   typeRevenue[carType] = (typeRevenue[carType] || 0) + booking.totalAmount
+    // })
 
     return Object.entries(typeRevenue).map(([type, revenue]) => ({
       type: type.charAt(0).toUpperCase() + type.slice(1),
       revenue,
-      bookings: filteredData.bookings.filter(b => b.car.type === type).length
+      bookings: 0
     }))
   }, [filteredData])
 
@@ -132,16 +132,16 @@ export default function DashboardPage() {
       date.setHours(0, 0, 0, 0) // Reset time to start of day
       const dateStr = date.toISOString().split('T')[0]
 
-      const dayBookings = mockBookings.filter(booking => {
-        const bookingDate = new Date(booking.createdAt)
+      const dayBookings = [].filter(booking => {
+        const bookingDate = new Date(0)
         bookingDate.setHours(0, 0, 0, 0) // Reset time to start of day
-        const bookingDateStr = bookingDate.toISOString().split('T')[0]
+        const bookingDateStr = bookingDate.toISOString().split('T')[0] 
         return bookingDateStr === dateStr
       })
 
       data.push({
         date: dateStr,
-        revenue: dayBookings.reduce((sum, booking) => sum + booking.totalAmount, 0),
+        revenue: dayBookings.reduce((sum, booking) => sum + 0, 0),
         bookings: dayBookings.length
       })
     }
@@ -153,12 +153,12 @@ export default function DashboardPage() {
 
   // Calculate active bookings count
   const activeBookingsCount = useMemo(() => {
-    return mockBookings.filter(booking => booking.status === 'active').length
+    return 0
   }, [])
 
   // Calculate total users count
   const totalUsersCount = useMemo(() => {
-    return mockUsers.filter(user => user.role === 'user').length
+    return 0
   }, [])
 
   return (
@@ -450,7 +450,7 @@ export default function DashboardPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
+          {/* <div className="space-y-4">
             {filteredData.bookings.slice(0, 5).map((booking) => (
               <div key={booking.id} className="flex items-center justify-between p-3 border rounded-lg">
                 <div className="flex items-center space-x-3">
@@ -490,7 +490,7 @@ export default function DashboardPage() {
                 No bookings found for selected period
               </div>
             )}
-          </div>
+          </div> */}
         </CardContent>
       </Card>
     </div>

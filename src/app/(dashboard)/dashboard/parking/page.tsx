@@ -6,7 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 
-import { mockParkingSpots, mockCars, mockBookings } from '@/data/mock-data'
+
+import { getParkingSpots, ParkingSpot, getParkingSpotById } from './api'
 import {
   MapPin,
   Car,
@@ -14,23 +15,68 @@ import {
   Settings,
   Activity
 } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 export default function ParkingPage() {
   const router = useRouter()
+  const [parkingSpots, setParkingSpots] = useState<ParkingSpot[]>([])
+  const [parkingData, setParkingData] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchParkingSpots = async () => {
+      setLoading(true)
+      try {
+        const spots = await getParkingSpots()
+        if (spots) {
+          setParkingSpots(spots)
+          
+          // Fetch detailed data for each parking spot
+          const detailedData = await Promise.all(
+            spots.map(async (spot) => {
+              if (spot.id) {
+                const detailedSpot = await getParkingSpotById(spot.id)
+                return detailedSpot
+              }
+              return null
+            })
+          )
+          
+          setParkingData(detailedData.filter(data => data !== null))
+        }
+      } catch (error) {
+        console.error('Error fetching parking spots:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchParkingSpots()
+  }, [])
 
   const getSpotStats = (spotId: string) => {
-    const carsAtSpot = mockCars.filter(car => car.parkingSpotId === spotId)
+    const spotData = parkingData.find(data => data?.parking?.id?.toString() === spotId)
+    const cars = spotData?.cars || []
 
     return {
-      totalCars: carsAtSpot.length,
-      availableCars: carsAtSpot.filter(car => car.status === 'available').length,
-      bookedCars: carsAtSpot.filter(car => car.status === 'rented').length,
-      maintenanceCars: carsAtSpot.filter(car => car.status === 'maintenance').length,
+      totalCars: cars.length,
+      availableCars: cars.filter((car: any) => car.isavailable).length,
+      bookedCars: cars.filter((car: any) => !car.isavailable && !car.inmaintainance).length,
+      maintenanceCars: cars.filter((car: any) => car.inmaintainance).length,
     }
   }
 
   const handleParkingClick = (spotId: string) => {
     router.push(`/dashboard/parking/${spotId}`)
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <span className="text-lg font-medium">Loading parking spots...</span>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -45,7 +91,7 @@ export default function ParkingPage() {
         </div>
         <Button onClick={() => router.push('/dashboard/parking/add')}>
           <Plus className="h-4 w-4 mr-2" />
-          Add Parking Plot
+          Add Parking Spot
         </Button>
       </div>
 
@@ -57,7 +103,7 @@ export default function ParkingPage() {
               <MapPin className="h-8 w-8 text-orange-600" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Total Spots</p>
-                <p className="text-2xl font-bold">{mockParkingSpots.length}</p>
+                <p className="text-2xl font-bold">{parkingSpots.length}</p>
               </div>
             </div>
           </CardContent>
@@ -69,7 +115,7 @@ export default function ParkingPage() {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Total Cars</p>
                 <p className="text-2xl font-bold">
-                  {mockCars.length}
+                  {parkingData.reduce((total, data) => total + (data?.cars?.length || 0), 0)}
                 </p>
               </div>
             </div>
@@ -80,9 +126,9 @@ export default function ParkingPage() {
             <div className="flex items-center">
               <Activity className="h-8 w-8 text-orange-600" />
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Active Bookings</p>
+                <p className="text-sm font-medium text-gray-600">Total Capacity</p>
                 <p className="text-2xl font-bold">
-                  {mockBookings.filter(booking => booking.status === 'active').length}
+                  {parkingSpots.reduce((total, spot) => total + spot.capacity, 0)}
                 </p>
               </div>
             </div>
@@ -92,14 +138,14 @@ export default function ParkingPage() {
 
       {/* Parking Spots Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {mockParkingSpots.map((spot) => {
-          const stats = getSpotStats(spot.id)
+        {parkingSpots.map((spot: ParkingSpot) => {
+          const stats = getSpotStats(spot.id?.toString() ?? '')
 
           return (
             <Card
               key={spot.id}
               className="cursor-pointer hover:shadow-lg transition-shadow"
-              onClick={() => handleParkingClick(spot.id)}
+              onClick={() => handleParkingClick(spot.id?.toString() ?? '')}
             >
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -108,11 +154,9 @@ export default function ParkingPage() {
                       <MapPin className="h-5 w-5" />
                       {spot.name}
                     </CardTitle>
-                    <CardDescription>{spot.address}</CardDescription>
+                    <CardDescription>{spot.locality}</CardDescription>
                   </div>
-                  <Badge variant={spot.isActive ? 'default' : 'secondary'}>
-                    {spot.isActive ? 'Active' : 'Inactive'}
-                  </Badge>
+                 
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">

@@ -47,28 +47,7 @@ export interface Car {
   updatedAt: Date
 }
 
-// Parking Spot types
-export interface ParkingSpot {
-  id: string
-  name: string
-  address: string
-  location: {
-    lat: number
-    lng: number
-  }
-  capacity: number
-  currentOccupancy: number
-  availableCars: Car[]
-  hourlyRate: number
-  dailyRate: number
-  amenities: string[]
-  operatingHours: {
-    open: string
-    close: string
-  }
-  isActive: boolean
-  createdAt: Date
-}
+
 
 // Booking types
 export interface Booking {
@@ -78,7 +57,7 @@ export interface Booking {
   carId: string
   car: Car
   parkingSpotId: string
-  parkingSpot: ParkingSpot
+  // parkingSpot: ParkingSpot
   startDate: Date
   endDate: Date
   status: 'pending' | 'confirmed' | 'active' | 'completed' | 'cancelled'

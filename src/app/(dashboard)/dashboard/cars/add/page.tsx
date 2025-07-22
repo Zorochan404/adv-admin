@@ -137,8 +137,8 @@ export default function AddCarPage() {
     try {
       const result = await uploadImageToCloudinary(file, 'car-rental/main')
       if (result.success && result.data) {
-        setFormData(prev => ({
-          ...prev,
+    setFormData(prev => ({
+      ...prev,
           mainimg: result.data!.secure_url
         }))
         toast.success('Main image uploaded successfully!')
@@ -162,8 +162,8 @@ export default function AddCarPage() {
     try {
       const result = await uploadImageToCloudinary(file, 'car-rental/additional')
       if (result.success && result.data) {
-        setFormData(prev => ({
-          ...prev,
+    setFormData(prev => ({
+      ...prev,
           images: [...prev.images, result.data!.secure_url]
         }))
         toast.success(`${file.name} uploaded successfully!`)
@@ -243,9 +243,9 @@ export default function AddCarPage() {
           insuranceimg: result.data!.secure_url
         }))
         toast.success('Insurance document uploaded successfully!')
-      } else {
+        } else {
         toast.error('Failed to upload insurance document')
-      }
+        }
     } catch (error) {
       console.error('Insurance image upload error:', error)
       toast.error('Failed to upload insurance document')
@@ -285,8 +285,8 @@ export default function AddCarPage() {
     const file = e.target.files?.[0]
     if (file) {
       uploadRcImage(file)
-    }
-  }
+        }
+      }
 
   const handlePollutionImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -299,8 +299,8 @@ export default function AddCarPage() {
     const file = e.target.files?.[0]
     if (file) {
       uploadInsuranceImage(file)
-    }
-  }
+        }
+      }
 
   // Cleanup object URLs on unmount
   useEffect(() => {

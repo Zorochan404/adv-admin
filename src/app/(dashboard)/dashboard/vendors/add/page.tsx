@@ -10,27 +10,9 @@ import { Switch } from "@/components/ui/switch";
 import { ArrowLeft, Upload, Eye, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { uploadImageToCloudinary, validateImageFile } from "@/lib/cloudinary";
+import { addVendor, VendorFormData } from "../api";
 
-interface VendorFormData {
-  name: string;
-  age: number | "";
-  aadharNumber: string;
-  aadharImg: string;
-  dlNumber: string;
-  dlImg: string;
-  passportNumber: string;
-  passportImg: string;
-  addressLocation: string;
-  addressState: string;
-  addressCountry: string;
-  addressPincode: string;
-  phone: string;
-  email: string;
-  password: string;
-  role: "vendor";
-  avatar: string;
-  isverified: boolean;
-}
+
 
 export default function AddVendorPage() {
   const router = useRouter();
@@ -39,20 +21,21 @@ export default function AddVendorPage() {
     name: "",
     age: "",
     aadharNumber: "",
-    aadharImg: "",
+    aadharimg: "",
     dlNumber: "",
-    dlImg: "",
+    dlimg: "",
     passportNumber: "",
-    passportImg: "",
-    addressLocation: "",
-    addressState: "",
-    addressCountry: "",
-    addressPincode: "",
-    phone: "",
+    passportimg: "",
+    locality: "",
+    city: "",
+    state: "",
+    country: "",
+    pincode: "",
+    number: "",
     email: "",
     password: "",
-    role: "vendor",
     avatar: "",
+    role: "vendor",
     isverified: false,
   });
 
@@ -83,18 +66,26 @@ export default function AddVendorPage() {
     setImageLoading(prev => ({ ...prev, [field]: false }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    // Mock API call
-    setTimeout(() => {
-      setLoading(false);
+    const response = await addVendor(form);
+    if (response) {
       toast.success("Vendor added successfully!");
-      router.push("/dashboard/vendors");
-    }, 1500);
+      router.push('/dashboard/vendors')
+    } else {
+      toast.error("Failed to add vendor");
+    }
+    setLoading(false);
+  };
+
+  const handleDeleteVendor = (id: number) => {
+    
+    toast.success("Vendor deleted successfully!");
   };
 
   return (
+
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Button variant="ghost" onClick={() => router.push("/dashboard/vendors")}>
@@ -188,38 +179,51 @@ export default function AddVendorPage() {
                   <div>
                     <Label>Location</Label>
                     <Input
-                      value={form.addressLocation}
-                      onChange={(e) => handleInputChange("addressLocation", e.target.value)}
+                      value={form.locality}
+                      onChange={(e) => handleInputChange("locality", e.target.value)}
                       required
                     />
                   </div>
                   <div>
-                    <Label>State</Label>
+                    <Label>City</Label>
                     <Input
-                      value={form.addressState}
-                      onChange={(e) => handleInputChange("addressState", e.target.value)}
+                      value={form.city}
+                      onChange={(e) => handleInputChange("city", e.target.value)}
                       required
                     />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label>Country</Label>
+                    <Label>State</Label>
                     <Input
-                      value={form.addressCountry}
-                      onChange={(e) => handleInputChange("addressCountry", e.target.value)}
+                      value={form.state}
+                      onChange={(e) => handleInputChange("state", e.target.value)}
                       required
                     />
                   </div>
                   <div>
-                    <Label>Pincode</Label>
+                    <Label>Country</Label>
                     <Input
-                      value={form.addressPincode}
-                      onChange={(e) => handleInputChange("addressPincode", e.target.value)}
+                      value={form.country}
+                      onChange={(e) => handleInputChange("country", e.target.value)}
                       required
                     />
                   </div>
                 </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Pincode</Label>
+                    <Input
+                      type="number"
+                      value={form.pincode}
+                      onChange={(e) => handleInputChange("pincode", parseInt(e.target.value))}
+                      required
+                    />
+                  </div>
+
+                </div>
+                
               </CardContent>
             </Card>
             {/* Contact & Credentials */}
@@ -232,8 +236,9 @@ export default function AddVendorPage() {
                   <div>
                     <Label>Phone Number</Label>
                     <Input
-                      value={form.phone}
-                      onChange={(e) => handleInputChange("phone", e.target.value)}
+                      type="number"
+                      value={form.number}
+                      onChange={(e) => handleInputChange("number", parseInt(e.target.value))}
                       required
                     />
                   </div>
@@ -277,15 +282,15 @@ export default function AddVendorPage() {
                     <Label>Aadhar Image</Label>
                     <div className="flex items-center gap-4">
                       <Input
-                        value={form.aadharImg}
-                        onChange={(e) => handleInputChange("aadharImg", e.target.value)}
+                        value={form.aadharimg}
+                        onChange={(e) => handleInputChange("aadharimg", e.target.value)}
                         placeholder="Image URL or upload"
                       />
                       <Input
                         type="file"
                         id="aadhar-upload"
                         className="hidden"
-                        onChange={(e) => e.target.files && handleImageUpload("aadharImg", e.target.files[0])}
+                        onChange={(e) => e.target.files && handleImageUpload("aadharimg", e.target.files[0])}
                       />
                       <Button asChild variant="outline">
                         <Label htmlFor="aadhar-upload" className="cursor-pointer">
@@ -293,12 +298,12 @@ export default function AddVendorPage() {
                         </Label>
                       </Button>
                     </div>
-                    {form.aadharImg && (
+                    {form.aadharimg && (
                       <div className="mt-3">
                         <Label className="text-sm text-gray-600">Preview:</Label>
                         <div className="mt-2 relative inline-block">
                           <img
-                            src={form.aadharImg}
+                            src={form.aadharimg}
                             alt="Aadhar preview"
                             className="w-32 h-24 object-cover rounded-lg border border-gray-200"
                           />
@@ -307,7 +312,7 @@ export default function AddVendorPage() {
                             variant="outline"
                             size="sm"
                             className="absolute top-1 right-1 h-6 w-6 p-0"
-                            onClick={() => window.open(form.aadharImg, "_blank")}
+                            onClick={() => window.open(form.aadharimg, "_blank")}
                           >
                             <Eye className="h-3 w-3" />
                           </Button>
@@ -329,15 +334,15 @@ export default function AddVendorPage() {
                     <Label>DL Image</Label>
                     <div className="flex items-center gap-4">
                       <Input
-                        value={form.dlImg}
-                        onChange={(e) => handleInputChange("dlImg", e.target.value)}
+                        value={form.dlimg}
+                        onChange={(e) => handleInputChange("dlimg", e.target.value)}
                         placeholder="Image URL or upload"
                       />
                       <Input
                         type="file"
                         id="dl-upload"
                         className="hidden"
-                        onChange={(e) => e.target.files && handleImageUpload("dlImg", e.target.files[0])}
+                        onChange={(e) => e.target.files && handleImageUpload("dlimg", e.target.files[0])}
                       />
                       <Button asChild variant="outline">
                         <Label htmlFor="dl-upload" className="cursor-pointer">
@@ -345,12 +350,12 @@ export default function AddVendorPage() {
                         </Label>
                       </Button>
                     </div>
-                    {form.dlImg && (
+                    {form.dlimg && (
                       <div className="mt-3">
                         <Label className="text-sm text-gray-600">Preview:</Label>
                         <div className="mt-2 relative inline-block">
                           <img
-                            src={form.dlImg}
+                            src={form.dlimg}
                             alt="DL preview"
                             className="w-32 h-24 object-cover rounded-lg border border-gray-200"
                           />
@@ -359,7 +364,7 @@ export default function AddVendorPage() {
                             variant="outline"
                             size="sm"
                             className="absolute top-1 right-1 h-6 w-6 p-0"
-                            onClick={() => window.open(form.dlImg, "_blank")}
+                            onClick={() => window.open(form.dlimg, "_blank")}
                           >
                             <Eye className="h-3 w-3" />
                           </Button>
@@ -380,15 +385,15 @@ export default function AddVendorPage() {
                     <Label>Passport Image</Label>
                     <div className="flex items-center gap-4">
                       <Input
-                        value={form.passportImg}
-                        onChange={(e) => handleInputChange("passportImg", e.target.value)}
+                        value={form.passportimg}
+                        onChange={(e) => handleInputChange("passportimg", e.target.value)}
                         placeholder="Image URL or upload"
                       />
                       <Input
                         type="file"
                         id="passport-upload"
                         className="hidden"
-                        onChange={(e) => e.target.files && handleImageUpload("passportImg", e.target.files[0])}
+                        onChange={(e) => e.target.files && handleImageUpload("passportimg", e.target.files[0])}
                       />
                       <Button asChild variant="outline">
                         <Label htmlFor="passport-upload" className="cursor-pointer">
@@ -396,12 +401,12 @@ export default function AddVendorPage() {
                         </Label>
                       </Button>
                     </div>
-                    {form.passportImg && (
+                    {form.passportimg && (
                       <div className="mt-3">
                         <Label className="text-sm text-gray-600">Preview:</Label>
                         <div className="mt-2 relative inline-block">
                           <img
-                            src={form.passportImg}
+                            src={form.passportimg}
                             alt="Passport preview"
                             className="w-32 h-24 object-cover rounded-lg border border-gray-200"
                           />
@@ -410,7 +415,7 @@ export default function AddVendorPage() {
                             variant="outline"
                             size="sm"
                             className="absolute top-1 right-1 h-6 w-6 p-0"
-                            onClick={() => window.open(form.passportImg, "_blank")}
+                            onClick={() => window.open(form.passportimg, "_blank")}
                           >
                             <Eye className="h-3 w-3" />
                           </Button>
@@ -453,5 +458,6 @@ export default function AddVendorPage() {
         </Card>
       </form>
     </div>
+   
   );
 } 
