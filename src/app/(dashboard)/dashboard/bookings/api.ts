@@ -1,33 +1,121 @@
 import axios from "axios";
 import { toast } from "sonner";
 import Cookies from "js-cookie";
+import { Timestamp } from "next/dist/server/lib/cache-handlers/types";
 
 export interface Booking {
   id: number
   userId: number
   carId: number
-  startDate: string
-  endDate: string
+  startDate: Timestamp
+  endDate: Timestamp
+  price: number
+  insurancePrice: number
+  totalPrice: number
+  extensionPrice: number | null
+  extentiontill: Timestamp | null
+  extentiontime: number | null
   status: 'pending' | 'confirmed' | 'active' | 'completed' | 'cancelled'
-  totalAmount: number
+  tool: string
+  tripStartingCarImages: string[]
   paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded'
-  pickupLocation: string | null
-  dropoffLocation: string | null
-  notes: string | null
-  createdAt: string
-  updatedAt: string
-  user?: {
-    id: number
-    name: string | null
-    email: string | null
-    number: number
-  }
-  car?: {
+  paymentReferenceId: string | null
+  pickupParkingId: number
+  dropoffParkingId: number
+  createdAt?: Timestamp
+  updatedAt?: Timestamp
+  
+  // Car object
+  car: {
     id: number
     name: string
     maker: string
+    year: number
     carnumber: string
+    price: number
+    discountedprice: number
+    color: string
+    transmission: string
+    fuel: string
+    type: string
+    seats: number
+    rcnumber: string
+    rcimg: string
+    pollutionimg: string
+    insuranceimg: string
+    inmaintainance: boolean
+    isavailable: boolean
+    images: string[]
     mainimg: string
+    vendorid: number
+    parkingid: number | null
+    isapproved: boolean
+    ispopular: boolean
+    insurancePrice: number
+    createdAt?: Timestamp
+    updatedAt?: Timestamp
+  }
+  
+  // User object
+  user: {
+    id: number
+    name: string | null
+    avatar: string | null
+    age: number | null
+    number: number
+    email: string | null
+    aadharNumber: string | null
+    aadharimg: string | null
+    dlNumber: string | null
+    dlimg: string | null
+    passportNumber: string | null
+    passportimg: string | null
+    lat: number | null
+    lng: number | null
+    locality: string | null
+    city: string | null
+    state: string | null
+    country: string | null
+    pincode: string | null
+    role: string
+    isverified: boolean
+    parkingid: number | null
+    createdAt?: Timestamp
+    updatedAt?: Timestamp
+  }
+  
+  // Parking details
+  pickupParking: {
+    id: number
+    name: string
+    locality: string
+    city: string
+    state: string
+    country: string
+    pincode: number
+    capacity: number
+    mainimg: string
+    images: string[]
+    lat: number
+    lng: number
+    createdAt?: Timestamp
+    updatedAt?: Timestamp
+  }
+  dropoffParking: {
+    id: number
+    name: string
+    locality: string
+    city: string
+    state: string
+    country: string
+    pincode: number
+    capacity: number
+    mainimg: string
+    images: string[]
+    lat: number
+    lng: number
+    createdAt?: Timestamp
+    updatedAt?: Timestamp
   }
 }
 
@@ -41,7 +129,7 @@ export const getBookings = async (): Promise<{ success: boolean; data?: Booking[
       }
     }
 
-    const response = await axios.get(`${process.env.NEXT_PUBLIC_base_url}/booking/getallbookings`, {
+    const response = await axios.get(`${process.env.NEXT_PUBLIC_base_url}/booking/get`, {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
@@ -81,7 +169,7 @@ export const getBookingById = async (id: number): Promise<{ success: boolean; da
       }
     }
 
-    const response = await axios.get(`${process.env.NEXT_PUBLIC_base_url}/booking/getbooking/${id}`, {
+    const response = await axios.get(`${process.env.NEXT_PUBLIC_base_url}/booking/b/${id}`, {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
@@ -159,7 +247,7 @@ export const deleteBooking = async (id: number): Promise<{ success: boolean; mes
       }
     }
 
-    const response = await axios.delete(`${process.env.NEXT_PUBLIC_base_url}/booking/deletebooking/${id}`, {
+    const response = await axios.delete(`${process.env.NEXT_PUBLIC_base_url}/booking/b/${id}`, {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
@@ -185,3 +273,41 @@ export const deleteBooking = async (id: number): Promise<{ success: boolean; mes
     }
   }
 } 
+
+export const updateBooking = async (booking: Booking): Promise<{ success: boolean; data?: Booking; message?: string }> => {
+  try {
+    const accessToken = Cookies.get('accessToken')
+    if (!accessToken) {
+      return {
+        success: false,
+        message: 'No access token found'
+      }
+    }
+
+    const response = await axios.put(`${process.env.NEXT_PUBLIC_base_url}/booking/b/${booking.id}`, booking, {
+      headers: {
+        'Authorization': `${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (response.data.success) {
+      return {
+        success: true,
+        data: response.data.data,
+        message: response.data.message
+      }
+    } else {
+      return {
+        success: false,
+        message: response.data.message || 'Failed to update booking'
+      }
+    }
+  } catch (error) {
+    console.error('Error updating booking:', error);
+    return {
+      success: false,
+      message: 'An error occurred while updating booking'
+    }
+  }
+}

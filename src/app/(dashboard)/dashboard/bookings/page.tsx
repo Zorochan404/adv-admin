@@ -14,20 +14,15 @@ import {
   TableHeader, 
   TableRow 
 } from '@/components/ui/table'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
+
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Label } from '@/components/ui/label'
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils'
 import { Calendar, Search, Eye, Edit, Trash2, Car, User, MapPin, CreditCard, Clock } from 'lucide-react'
 import { toast } from 'sonner'
 import { getBookings, deleteBooking, updateBookingStatus, Booking } from './api'
+import { Timestamp } from 'next/dist/server/lib/cache-handlers/types'
 
 export default function BookingsPage() {
   const router = useRouter()
@@ -36,7 +31,11 @@ export default function BookingsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [paymentFilter, setPaymentFilter] = useState<string>('all')
-  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
+  
+  // Date range filter state
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [dateFilterActive, setDateFilterActive] = useState(false)
 
   // Fetch bookings on component mount
   useEffect(() => {
@@ -73,7 +72,19 @@ export default function BookingsPage() {
     const matchesStatus = statusFilter === 'all' || booking.status === statusFilter
     const matchesPayment = paymentFilter === 'all' || booking.paymentStatus === paymentFilter
 
-    return matchesSearch && matchesStatus && matchesPayment
+    // Date range filter
+    let matchesDateRange = true
+    if (dateFilterActive && startDate && endDate) {
+      const bookingStartDate = new Date(booking.startDate)
+      const bookingEndDate = new Date(booking.endDate)
+      const filterStartDate = new Date(startDate)
+      const filterEndDate = new Date(endDate)
+      
+      // Check if booking dates overlap with filter dates
+      matchesDateRange = bookingStartDate <= filterEndDate && bookingEndDate >= filterStartDate
+    }
+
+    return matchesSearch && matchesStatus && matchesPayment && matchesDateRange
   })
 
   const handleDeleteBooking = async (bookingId: number) => {
@@ -143,11 +154,20 @@ export default function BookingsPage() {
   }
 
   const calculateDuration = (startDate: string, endDate: string) => {
-    const start = new Date(startDate)
-    const end = new Date(endDate)
-    const diffTime = Math.abs(end.getTime() - start.getTime())
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-    return diffDays
+    try {
+      const start = new Date(startDate)
+      const end = new Date(endDate)
+      
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        return 0
+      }
+      
+      const diffTime = Math.abs(end.getTime() - start.getTime())
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+      return diffDays
+    } catch (error) {
+      return 0
+    }
   }
 
   return (
@@ -209,7 +229,7 @@ export default function BookingsPage() {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Paid</p>
-                <p className="text-2xl font-bold">{bookings.filter(b => b.paymentStatus === 'paid').length}</p>
+                <p className="text-2xl font-bold">{bookings.filter(b => b.status === 'confirmed').length}</p>
               </div>
             </div>
           </CardContent>
@@ -261,6 +281,54 @@ export default function BookingsPage() {
                 </SelectContent>
               </Select>
             </div>
+            
+            {/* Date Range Filter */}
+            <div className="flex gap-4 items-center">
+              <Label className="text-sm font-medium">Filter by Booking Dates:</Label>
+              <Input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="max-w-xs"
+                placeholder="Start Date"
+              />
+              <span className="text-gray-500">to</span>
+              <Input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="max-w-xs"
+                placeholder="End Date"
+              />
+              <Button
+                onClick={() => {
+                  if (startDate && endDate) {
+                    setDateFilterActive(true)
+                    toast.success('Date filter applied!')
+                  } else {
+                    toast.error('Please select both start and end dates')
+                  }
+                }}
+                variant="outline"
+                size="sm"
+              >
+                Apply Date Filter
+              </Button>
+              {dateFilterActive && (
+                <Button
+                  onClick={() => {
+                    setDateFilterActive(false)
+                    setStartDate('')
+                    setEndDate('')
+                    toast.success('Date filter cleared!')
+                  }}
+                  variant="ghost"
+                  size="sm"
+                >
+                  Clear Date Filter
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* Bookings Table */}
@@ -268,8 +336,8 @@ export default function BookingsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Booking ID</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Car</TableHead>
+                <TableHead>Customer Name</TableHead>
+                <TableHead>Car Name</TableHead>
                 <TableHead>Duration</TableHead>
                 <TableHead>Amount</TableHead>
                 <TableHead>Status</TableHead>
@@ -296,46 +364,41 @@ export default function BookingsPage() {
                     <TableCell>
                       <div>
                         <p className="font-medium">#{booking.id}</p>
-                        <p className="text-sm text-gray-600">{formatDate(booking.createdAt)}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8">
-                          <AvatarFallback>
-                            {booking.user?.name ? booking.user.name.split(' ').map(n => n[0]).join('').toUpperCase() : 'U'}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium">{booking.user?.name || 'Unknown User'}</p>
-                          <p className="text-sm text-gray-600">{booking.user?.email || 'No email'}</p>
-                          <p className="text-sm text-gray-600">{booking.user?.number}</p>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {booking.car ? (
-                        <div className="flex items-center gap-3">
-                          <img src={booking.car.mainimg} alt={booking.car.name} className="w-12 h-8 object-cover rounded" />
-                          <div>
-                            <p className="font-medium">{booking.car.maker} {booking.car.name}</p>
-                            <p className="text-sm text-gray-600">{booking.car.carnumber}</p>
-                          </div>
-                        </div>
-                      ) : (
-                        <span className="text-gray-500">Car not found</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">{calculateDuration(booking.startDate, booking.endDate)} days</p>
                         <p className="text-sm text-gray-600">
-                          {formatDate(booking.startDate)} - {formatDate(booking.endDate)}
+                          {booking.createdAt
+                            ? formatDate(
+                                typeof booking.createdAt === 'number'
+                                  ? new Date(booking.createdAt)
+                                  : booking.createdAt
+                              )
+                            : 'No date'}
                         </p>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <p className="font-medium">{formatCurrency(booking.totalAmount)}</p>
+                      <div>
+                          <p className="font-medium">{booking.user?.name || 'Unknown User'}</p>
+                          <p className="text-sm text-gray-600">{booking.user?.email || 'No email'}</p>
+                          <p className="text-sm text-gray-600">{booking.user?.number}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{booking.car?.name || 'Unknown Car'}</p>
+                          <p className="text-sm text-gray-600">{booking.car?.maker || 'Unknown Maker'}</p>
+                          <p className="text-sm text-gray-600">{booking.car?.carnumber || 'No number'}</p>
+                        </div>
+                      </TableCell>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium">{calculateDuration(booking.startDate.toString(), booking.endDate.toString())} days</p>
+                        <p className="text-sm text-gray-600">
+                          {booking.startDate ? formatDate(booking.startDate.toString()) : 'No start date'} - {booking.endDate ? formatDate(booking.endDate.toString()) : 'No end date'}
+                        </p>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <p className="font-medium">{formatCurrency(booking.totalPrice)}</p>
                     </TableCell>
                     <TableCell>
                       <Badge className={getStatusBadgeColor(booking.status)}>
@@ -349,177 +412,13 @@ export default function BookingsPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setSelectedBooking(booking)}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                            <DialogHeader>
-                              <DialogTitle>Booking Details</DialogTitle>
-                              <DialogDescription>
-                                Complete information for booking #{booking.id}
-                              </DialogDescription>
-                            </DialogHeader>
-                            {selectedBooking && (
-                              <div className="space-y-6">
-                                {/* Booking Header */}
-                                <div className="flex items-center justify-between">
-                                  <div>
-                                    <h3 className="text-xl font-semibold">Booking #{selectedBooking.id}</h3>
-                                    <p className="text-gray-600">Created on {formatDateTime(selectedBooking.createdAt)}</p>
-                                    <div className="flex items-center gap-2 mt-2">
-                                      <Badge className={getStatusBadgeColor(selectedBooking.status)}>
-                                        {selectedBooking.status}
-                                      </Badge>
-                                      <Badge className={getPaymentBadgeColor(selectedBooking.paymentStatus)}>
-                                        {selectedBooking.paymentStatus}
-                                      </Badge>
-                                    </div>
-                                  </div>
-                                  <div className="text-right">
-                                    <p className="text-2xl font-bold">{formatCurrency(selectedBooking.totalAmount)}</p>
-                                    <p className="text-sm text-gray-600">Total Amount</p>
-                                  </div>
-                                </div>
-
-                                {/* Customer Information */}
-                                <div>
-                                  <h4 className="font-medium mb-3 flex items-center gap-2">
-                                    <User className="h-4 w-4" />
-                                    Customer Information
-                                  </h4>
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div className="p-3 bg-gray-50 rounded-lg">
-                                      <p className="text-sm text-gray-600">Customer Name</p>
-                                      <p className="font-medium">{selectedBooking.user?.name || 'Unknown User'}</p>
-                                    </div>
-                                    <div className="p-3 bg-gray-50 rounded-lg">
-                                      <p className="text-sm text-gray-600">Email</p>
-                                      <p className="font-medium">{selectedBooking.user?.email || 'No email'}</p>
-                                    </div>
-                                    <div className="p-3 bg-gray-50 rounded-lg">
-                                      <p className="text-sm text-gray-600">Phone Number</p>
-                                      <p className="font-medium">{selectedBooking.user?.number}</p>
-                                    </div>
-                                    <div className="p-3 bg-gray-50 rounded-lg">
-                                      <p className="text-sm text-gray-600">Customer ID</p>
-                                      <p className="font-medium">{selectedBooking.userId}</p>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* Car Information */}
-                                {selectedBooking.car && (
-                                  <div>
-                                    <h4 className="font-medium mb-3 flex items-center gap-2">
-                                      <Car className="h-4 w-4" />
-                                      Car Information
-                                    </h4>
-                                    <div className="grid grid-cols-2 gap-4">
-                                      <div className="p-3 bg-gray-50 rounded-lg">
-                                        <p className="text-sm text-gray-600">Car</p>
-                                        <p className="font-medium">{selectedBooking.car.maker} {selectedBooking.car.name}</p>
-                                      </div>
-                                      <div className="p-3 bg-gray-50 rounded-lg">
-                                        <p className="text-sm text-gray-600">License Plate</p>
-                                        <p className="font-medium">{selectedBooking.car.carnumber}</p>
-                                      </div>
-                                      <div className="p-3 bg-gray-50 rounded-lg">
-                                        <p className="text-sm text-gray-600">Car ID</p>
-                                        <p className="font-medium">{selectedBooking.carId}</p>
-                                      </div>
-                                      <div className="p-3 bg-gray-50 rounded-lg">
-                                        <p className="text-sm text-gray-600">Car Image</p>
-                                        <img src={selectedBooking.car.mainimg} alt="Car" className="w-20 h-16 object-cover rounded mt-1" />
-                                      </div>
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* Booking Details */}
-                                <div>
-                                  <h4 className="font-medium mb-3 flex items-center gap-2">
-                                    <Calendar className="h-4 w-4" />
-                                    Booking Details
-                                  </h4>
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div className="p-3 bg-gray-50 rounded-lg">
-                                      <p className="text-sm text-gray-600">Start Date</p>
-                                      <p className="font-medium">{formatDateTime(selectedBooking.startDate)}</p>
-                                    </div>
-                                    <div className="p-3 bg-gray-50 rounded-lg">
-                                      <p className="text-sm text-gray-600">End Date</p>
-                                      <p className="font-medium">{formatDateTime(selectedBooking.endDate)}</p>
-                                    </div>
-                                    <div className="p-3 bg-gray-50 rounded-lg">
-                                      <p className="text-sm text-gray-600">Duration</p>
-                                      <p className="font-medium">{calculateDuration(selectedBooking.startDate, selectedBooking.endDate)} days</p>
-                                    </div>
-                                    <div className="p-3 bg-gray-50 rounded-lg">
-                                      <p className="text-sm text-gray-600">Booking ID</p>
-                                      <p className="font-medium">#{selectedBooking.id}</p>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* Location Information */}
-                                {(selectedBooking.pickupLocation || selectedBooking.dropoffLocation) && (
-                                  <div>
-                                    <h4 className="font-medium mb-3 flex items-center gap-2">
-                                      <MapPin className="h-4 w-4" />
-                                      Location Information
-                                    </h4>
-                                    <div className="grid grid-cols-2 gap-4">
-                                      {selectedBooking.pickupLocation && (
-                                        <div className="p-3 bg-gray-50 rounded-lg">
-                                          <p className="text-sm text-gray-600">Pickup Location</p>
-                                          <p className="font-medium">{selectedBooking.pickupLocation}</p>
-                                        </div>
-                                      )}
-                                      {selectedBooking.dropoffLocation && (
-                                        <div className="p-3 bg-gray-50 rounded-lg">
-                                          <p className="text-sm text-gray-600">Dropoff Location</p>
-                                          <p className="font-medium">{selectedBooking.dropoffLocation}</p>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* Notes */}
-                                {selectedBooking.notes && (
-                                  <div>
-                                    <h4 className="font-medium mb-3">Notes</h4>
-                                    <div className="p-3 bg-gray-50 rounded-lg">
-                                      <p className="text-sm">{selectedBooking.notes}</p>
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* Timestamps */}
-                                <div>
-                                  <h4 className="font-medium mb-3">Timestamps</h4>
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="p-3 bg-gray-50 rounded-lg">
-                                      <p className="text-sm text-gray-600">Created At</p>
-                                      <p className="font-medium">{formatDateTime(selectedBooking.createdAt)}</p>
-                                    </div>
-                                    <div className="p-3 bg-gray-50 rounded-lg">
-                                      <p className="text-sm text-gray-600">Updated At</p>
-                                      <p className="font-medium">{formatDateTime(selectedBooking.updatedAt)}</p>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </DialogContent>
-                        </Dialog>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => router.push(`/dashboard/bookings/${booking.id}`)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
                         <Select
                           value={booking.status}
                           onValueChange={(value: Booking['status']) => handleStatusUpdate(booking.id, value)}

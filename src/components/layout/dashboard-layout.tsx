@@ -37,7 +37,7 @@ const navigation = [
   { name: 'Users', href: '/dashboard/users', icon: Users },
   { name: 'Bookings', href: '/dashboard/bookings', icon: Calendar },
   {name: 'Vendors', href: '/dashboard/vendors', icon: User},
-  { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
+  // { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
 ]
 
 interface DashboardLayoutProps {

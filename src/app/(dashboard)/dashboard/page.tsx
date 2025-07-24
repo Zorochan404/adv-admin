@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -28,17 +28,50 @@ import {
   BarChart,
   Bar
 } from 'recharts'
+import { getBookings } from './bookings/api'
+import { fetchCars } from './cars/api'
+import { getUsers } from './users/api'
+import { getParkingSpots } from './parking/api'
 
 type FilterPeriod = 'today' | 'week' | 'month'
 
 export default function DashboardPage() {
   const [filterPeriod, setFilterPeriod] = useState<FilterPeriod>('week')
+  const [bookings, setBookings] = useState<any[]>([])
+  const [cars, setCars] = useState<any[]>([])
+  const [users, setUsers] = useState<any[]>([])
+  const [parkingSpots, setParkingSpots] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // Calculate filtered data based on period
-  const filteredData = useMemo(() => {
+  useEffect(() => {
+    async function fetchData() {
+      setLoading(true)
+      setError(null)
+      try {
+        const [bookingsRes, carsRes, usersRes, parkingRes] = await Promise.all([
+          getBookings(),
+          fetchCars(),
+          getUsers(),
+          getParkingSpots(),
+        ])
+        setBookings(bookingsRes.data || [])
+        setCars(carsRes.data || [])
+        setUsers(usersRes.data || [])
+        setParkingSpots(parkingRes || [])
+      } catch (err) {
+        setError('Failed to load dashboard data')
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
+
+  // Filter bookings by period
+  const filteredBookings = useMemo(() => {
     const now = new Date()
     const startDate = new Date()
-
     switch (filterPeriod) {
       case 'today':
         startDate.setHours(0, 0, 0, 0)
@@ -52,114 +85,110 @@ export default function DashboardPage() {
         startDate.setHours(0, 0, 0, 0)
         break
     }
+    return bookings.filter(b => {
+      const created = b.createdAt ? new Date(b.createdAt) : null
+      return created && created >= startDate
+    })
+  }, [bookings, filterPeriod])
 
-    // const filteredBookings = mockBookings.filter(booking => {
-    //   const bookingDate = new Date(booking.createdAt)
-    //   return bookingDate >= startDate
-    // })
+  // Total Revenue
+  const totalRevenue = useMemo(() => {
+    return filteredBookings.reduce((sum, b) => sum + (b.totalPrice || 0), 0)
+  }, [filteredBookings])
 
-    // const totalRevenue = filteredBookings.reduce((sum, booking) => sum + booking.totalAmount, 0)
-    // const activeBookings = mockBookings.filter(b => b.status === 'active').length
-    // const completedBookings = filteredBookings.filter(b => b.status === 'completed').length
+  // Active Bookings
+  const activeBookingsCount = useMemo(() => {
+    return bookings.filter(b => b.status === 'active').length
+  }, [bookings])
 
-    return {
-      bookings: [],
-      totalRevenue: 0,
-      activeBookings: 0,
-      completedBookings: 0,
-      period: filterPeriod
-    }
-  }, [filterPeriod])
-
-  // Car availability analysis
+  // Car Availability
   const carAvailability = useMemo(() => {
-    const total = 0
-    const available = 0
-    const rented = 0
-    const maintenance = 0
-    const outOfService = 0
-
+    const total = cars.length
+    const available = cars.filter(c => c.isavailable).length
+    const rented = cars.filter(c => c.status === 'rented').length
+    const maintenance = cars.filter(c => c.status === 'maintenance').length
+    const outOfService = cars.filter(c => c.status === 'out_of_service').length
     return {
       total,
       available,
       rented,
       maintenance,
       outOfService,
-      availabilityRate: ((available / total) * 100).toFixed(1)
+      availabilityRate: total ? ((available / total) * 100).toFixed(1) : '0.0'
     }
-  }, [])
+  }, [cars])
 
-  // Parking spot utilization
+  // Total Users
+  const totalUsersCount = useMemo(() => users.length, [users])
+
+  // Parking Utilization
   const parkingUtilization = useMemo(() => {
-    return [].map(spot => {
-      const carsAtSpot = []
-      const utilization = ((carsAtSpot.length / 0) * 100).toFixed(1)
-
+    return parkingSpots.map(spot => {
+      const carsAtSpot = cars.filter(car => car.parkingid === spot.id)
+      const utilization = spot.capacity ? ((carsAtSpot.length / spot.capacity) * 100).toFixed(1) : '0.0'
       return {
-        name: '',
+        name: spot.name,
         cars: carsAtSpot.length,
-        capacity: 0,
+        capacity: spot.capacity,
         utilization: parseFloat(utilization),
-        available: 0 - carsAtSpot.length
+        available: spot.capacity - carsAtSpot.length
       }
     })
-  }, [])
+  }, [parkingSpots, cars])
 
-  // Revenue by car type
+  // Revenue by Car Type
   const revenueByCarType = useMemo(() => {
-    const typeRevenue: Record<string, number> = {}
-
-    // filteredData.bookings.forEach(booking => {
-    //   const carType = booking.car.type
-    //   typeRevenue[carType] = (typeRevenue[carType] || 0) + booking.totalAmount
-    // })
-
-    return Object.entries(typeRevenue).map(([type, revenue]) => ({
+    const typeRevenue: Record<string, { revenue: number, bookings: number }> = {}
+    filteredBookings.forEach(booking => {
+      const carType = booking.car?.type || 'Unknown'
+      if (!typeRevenue[carType]) typeRevenue[carType] = { revenue: 0, bookings: 0 }
+      typeRevenue[carType].revenue += booking.totalPrice || 0
+      typeRevenue[carType].bookings += 1
+    })
+    return Object.entries(typeRevenue).map(([type, data]) => ({
       type: type.charAt(0).toUpperCase() + type.slice(1),
-      revenue,
-      bookings: 0
+      revenue: data.revenue,
+      bookings: data.bookings
     }))
-  }, [filteredData])
+  }, [filteredBookings])
 
-  // Generate chart data for the selected period
+  // Chart Data
   const chartData = useMemo(() => {
     const days = filterPeriod === 'today' ? 1 : filterPeriod === 'week' ? 7 : 30
     const data = []
-
     for (let i = days - 1; i >= 0; i--) {
       const date = new Date()
       date.setDate(date.getDate() - i)
-      date.setHours(0, 0, 0, 0) // Reset time to start of day
+      date.setHours(0, 0, 0, 0)
       const dateStr = date.toISOString().split('T')[0]
-
-      const dayBookings = [].filter(booking => {
-        const bookingDate = new Date(0)
-        bookingDate.setHours(0, 0, 0, 0) // Reset time to start of day
-        const bookingDateStr = bookingDate.toISOString().split('T')[0] 
+      const dayBookings = filteredBookings.filter(b => {
+        const created = b.createdAt ? new Date(b.createdAt) : null
+        const bookingDateStr = created ? created.toISOString().split('T')[0] : ''
         return bookingDateStr === dateStr
       })
-
       data.push({
         date: dateStr,
-        revenue: dayBookings.reduce((sum, booking) => sum + 0, 0),
+        revenue: dayBookings.reduce((sum, b) => sum + (b.totalPrice || 0), 0),
         bookings: dayBookings.length
       })
     }
-
     return data
-  }, [filterPeriod])
+  }, [filteredBookings, filterPeriod])
 
+  // Recent Bookings
+  const recentBookings = useMemo(() => {
+    return bookings
+      .slice()
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 5)
+  }, [bookings])
 
-
-  // Calculate active bookings count
-  const activeBookingsCount = useMemo(() => {
-    return 0
-  }, [])
-
-  // Calculate total users count
-  const totalUsersCount = useMemo(() => {
-    return 0
-  }, [])
+  if (loading) {
+    return <div className="p-8 text-center text-lg">Loading dashboard...</div>
+  }
+  if (error) {
+    return <div className="p-8 text-center text-red-600">{error}</div>
+  }
 
   return (
     <div className="space-y-6">
@@ -196,10 +225,10 @@ export default function DashboardPage() {
             <DollarSign className="h-4 w-4 text-gray-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(filteredData.totalRevenue)}</div>
+            <div className="text-2xl font-bold">{formatCurrency(totalRevenue)}</div>
             <p className="text-xs text-gray-600 mt-1">
-              {filteredData.period === 'today' ? 'Today' :
-               filteredData.period === 'week' ? 'Last 7 days' : 'Last 30 days'} revenue
+              {filterPeriod === 'today' ? 'Today' :
+               filterPeriod === 'week' ? 'Last 7 days' : 'Last 30 days'} revenue
             </p>
           </CardContent>
         </Card>
@@ -446,21 +475,21 @@ export default function DashboardPage() {
         <CardHeader>
           <CardTitle>Recent Bookings</CardTitle>
           <CardDescription>
-            Latest rental activity ({filteredData.bookings.length} bookings in selected period)
+            Latest rental activity ({filteredBookings.length} bookings in selected period)
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {/* <div className="space-y-4">
-            {filteredData.bookings.slice(0, 5).map((booking) => (
+          <div className="space-y-4">
+            {recentBookings.map((booking) => (
               <div key={booking.id} className="flex items-center justify-between p-3 border rounded-lg">
                 <div className="flex items-center space-x-3">
                   <div className="bg-orange-100 p-2 rounded-full">
                     <Car className="h-4 w-4 text-orange-600" />
                   </div>
                   <div>
-                    <p className="font-medium">{booking.user.name}</p>
+                    <p className="font-medium">{booking.user?.name}</p>
                     <p className="text-sm text-gray-600">
-                      {booking.car.make} {booking.car.model} ({booking.car.uniqueId})
+                      {booking.car?.make} {booking.car?.model} ({booking.car?.uniqueId})
                     </p>
                     <p className="text-xs text-gray-500">
                       {formatDate(booking.createdAt)}
@@ -480,17 +509,17 @@ export default function DashboardPage() {
                     {booking.status}
                   </Badge>
                   <p className="text-sm text-gray-600 mt-1">
-                    {formatCurrency(booking.totalAmount)}
+                    {formatCurrency(booking.totalPrice)}
                   </p>
                 </div>
               </div>
             ))}
-            {filteredData.bookings.length === 0 && (
+            {recentBookings.length === 0 && (
               <div className="text-center py-8 text-gray-500">
                 No bookings found for selected period
               </div>
             )}
-          </div> */}
+          </div>
         </CardContent>
       </Card>
     </div>
