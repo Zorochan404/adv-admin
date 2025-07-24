@@ -57,6 +57,7 @@ export default function EditParkingSpotPage() {
         const response = await getParkingSpotById(parseInt(spotId))
         if (response && response.parking) {
           const parking = response.parking
+          console.log(parking)
           setFormData({
             name: parking.name,
             locality: parking.locality,

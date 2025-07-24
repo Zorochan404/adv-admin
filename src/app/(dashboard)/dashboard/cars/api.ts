@@ -1,13 +1,14 @@
 import axios from 'axios'
 import Cookies from 'js-cookie'
 
-interface Car {
+export interface Car {
   id: number
   name: string
   maker: string
   year: number
   carnumber: string
   price: number
+  insurancePrice: number
   discountedprice: number
   color: string
   transmission: string

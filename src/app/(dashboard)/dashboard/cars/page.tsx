@@ -29,6 +29,7 @@ import { Car, Plus, Search, MapPin, Eye, FileText, Shield, Wrench, User, Edit, T
 import { toast } from 'sonner'
 import { deleteCar, fetchCars } from './api'
 import { useRef } from 'react'
+import { Switch } from '@/components/ui/switch'
 
 interface Car {
   id: number
@@ -37,6 +38,7 @@ interface Car {
   year: number
   carnumber: string
   price: number
+  insurancePrice: number
   discountedprice: number
   color: string
   transmission: string
@@ -80,6 +82,7 @@ export default function CarsPage() {
   const [endDate, setEndDate] = useState('')
   const [bookingFilterLoading, setBookingFilterLoading] = useState(false)
   const [filteredByBookingCarIds, setFilteredByBookingCarIds] = useState<number[] | null>(null)
+  const [showPopularOnly, setShowPopularOnly] = useState(false)
 
   // Fetch cars on component mount
   useEffect(() => {
@@ -119,7 +122,9 @@ export default function CarsPage() {
     const matchesBooking =
       !filteredByBookingCarIds || filteredByBookingCarIds.includes(car.id)
 
-    return matchesSearch && matchesStatus && matchesBooking
+    const matchesPopular = !showPopularOnly || car.ispopular
+
+    return matchesSearch && matchesStatus && matchesBooking && matchesPopular
   })
 
   // Date range filter handler
@@ -262,28 +267,32 @@ export default function CarsPage() {
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-4 mb-6">
-            <div className="flex gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                placeholder="Search by make, model, license plate, unique ID, or owner..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-48">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="available">Available</SelectItem>
-                <SelectItem value="rented">Rented</SelectItem>
-                <SelectItem value="maintenance">Maintenance</SelectItem>
-                <SelectItem value="out_of_service">Out of Service</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex gap-4 items-center">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  placeholder="Search by make, model, license plate, unique ID, or owner..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-48">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="available">Available</SelectItem>
+                  <SelectItem value="rented">Rented</SelectItem>
+                  <SelectItem value="maintenance">Maintenance</SelectItem>
+                  <SelectItem value="out_of_service">Out of Service</SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="flex items-center gap-2 ml-4">
+                <Switch id="popular-toggle" checked={showPopularOnly} onCheckedChange={setShowPopularOnly} />
+                <Label htmlFor="popular-toggle" className="text-sm">Show only popular cars</Label>
+              </div>
             </div>
             {/* Date Range Selector */}
             <div className="flex gap-4 items-center">
@@ -410,6 +419,9 @@ export default function CarsPage() {
                                   <div className="text-right">
                                     <p className="text-2xl font-bold">{formatCurrency(selectedCar.price)}</p>
                                     <p className="text-sm text-gray-600">per day</p>
+                                    {selectedCar.insurancePrice > 0 && (
+                                      <p className="text-sm text-blue-600">{formatCurrency(selectedCar.insurancePrice)} (insurance)</p>
+                                    )}
                                     {selectedCar.discountedprice < selectedCar.price && (
                                       <p className="text-sm text-green-600">{formatCurrency(selectedCar.discountedprice)} (discounted)</p>
                                     )}
@@ -459,6 +471,28 @@ export default function CarsPage() {
                                         <p className="text-sm text-gray-600">Seats</p>
                                         <p className="font-medium">{selectedCar.seats}</p>
                                       </div>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Pricing Information */}
+                                <div>
+                                  <h4 className="font-medium mb-3 flex items-center gap-2">
+                                    <Shield className="h-4 w-4" />
+                                    Pricing Information
+                                  </h4>
+                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div className="p-3 bg-gray-50 rounded-lg">
+                                      <p className="text-sm text-gray-600">Daily Rate</p>
+                                      <p className="font-medium">{formatCurrency(selectedCar.price)}</p>
+                                    </div>
+                                    <div className="p-3 bg-gray-50 rounded-lg">
+                                      <p className="text-sm text-gray-600">Insurance Price</p>
+                                      <p className="font-medium">{formatCurrency(selectedCar.insurancePrice)}</p>
+                                    </div>
+                                    <div className="p-3 bg-gray-50 rounded-lg">
+                                      <p className="text-sm text-gray-600">Discounted Price</p>
+                                      <p className="font-medium">{selectedCar.discountedprice < selectedCar.price ? formatCurrency(selectedCar.discountedprice) : 'No discount'}</p>
                                     </div>
                                   </div>
                                 </div>

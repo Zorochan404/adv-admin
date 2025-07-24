@@ -21,6 +21,7 @@ interface CarFormData {
   year: number
   carnumber: string
   price: number
+  insurancePrice: number
   discountedprice: number
   color: string
   transmission: string
@@ -62,6 +63,7 @@ export default function EditCarPage() {
     year: new Date().getFullYear(),
     carnumber: '',
     price: 0,
+    insurancePrice: 0,
     discountedprice: 0,
     color: '',
     transmission: 'Manual',
@@ -109,6 +111,7 @@ export default function EditCarPage() {
             year: carData.year || new Date().getFullYear(),
             carnumber: carData.carnumber || '',
             price: carData.price || 0,
+            insurancePrice: carData.insurancePrice || 0,
             discountedprice: carData.discountedprice || 0,
             color: carData.color || '',
             transmission: carData.transmission || 'Manual',
@@ -514,7 +517,7 @@ export default function EditCarPage() {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <Label htmlFor="price">Price per Day *</Label>
                 <Input
@@ -523,6 +526,17 @@ export default function EditCarPage() {
                   value={formData.price}
                   onChange={(e) => handleInputChange('price', parseInt(e.target.value))}
                   placeholder="1500"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="insurancePrice">Insurance Price *</Label>
+                <Input
+                  id="insurancePrice"
+                  type="number"
+                  value={formData.insurancePrice}
+                  onChange={(e) => handleInputChange('insurancePrice', parseInt(e.target.value))}
+                  placeholder="500"
                   required
                 />
               </div>

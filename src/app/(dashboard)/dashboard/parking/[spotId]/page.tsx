@@ -32,7 +32,7 @@ import {
   UserPlus,
   Trash2
 } from 'lucide-react'
-import { getParkingSpotById, searchParkingInchargeByPhone, assignInchargeToParking, deleteParkingIncharge } from '../api'
+import { getParkingSpotById, searchParkingInchargeByPhone, assignInchargeToParking, deleteParkingIncharge, deleteParkingSpot } from '../api'
 import { useEffect, useState } from 'react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { toast } from 'sonner'
@@ -530,16 +530,37 @@ export default function ParkingSpotPage() {
             </p>
           </div>
         </div>
-   
-        <Button 
-          onClick={() => router.push(`/dashboard/parking/edit/${spotId}`)}
-          className="flex items-center gap-2"
-        >
-          <Edit className="h-4 w-4" />
-          Edit Parking Spot
-        </Button>
-        
-      
+        <div className="flex gap-2">
+          <Button 
+            onClick={() => router.push(`/dashboard/parking/edit/${spotId}`)}
+            className="flex items-center gap-2"
+          >
+            <Edit className="h-4 w-4" />
+            Edit Parking Spot
+          </Button>
+          <Button
+            variant="destructive"
+            className="flex items-center gap-2"
+            onClick={async () => {
+              if (window.confirm('Are you sure you want to delete this parking spot? This action cannot be undone.')) {
+                try {
+                  const res = await deleteParkingSpot(parseInt(spotId))
+                  if (res) {
+                    toast.success('Parking spot deleted successfully!')
+                    router.push('/dashboard/parking')
+                  } else {
+                    toast.error('Failed to delete parking spot')
+                  }
+                } catch (err) {
+                  toast.error('Failed to delete parking spot')
+                }
+              }
+            }}
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete
+          </Button>
+        </div>
       </div>
 
       {/* Parking Spot Details */}

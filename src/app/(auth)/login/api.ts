@@ -88,10 +88,15 @@ export default async function LoginAdmin(number: string, password: string): Prom
       })
     }
   } catch (error) {
-    console.error('Login error:', error)
+    let errorMessage = 'An error occurred during login';
+    if (error && typeof error === 'object' && 'response' in error && error.response && typeof error.response === 'object' && 'data' in error.response && error.response.data && typeof error.response.data === 'object' && 'message' in error.response.data) {
+      // @ts-ignore
+      errorMessage = error.response.data.message || errorMessage;
+    }
+
     return new Response(JSON.stringify({
       success: false,
-      message: 'An error occurred during login',
+      message: errorMessage,
     }), {
       status: 500,
       headers: {
